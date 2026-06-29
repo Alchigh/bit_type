@@ -1,48 +1,56 @@
 pico-8 cartridge // http://www.pico-8.com
 version 43
 __lua__
---game_init
-function init_game(x)
-	cls()
-	_update60 = update_game
-	_draw = draw_game
-	
- poke(0x5f2d,1)--enable stat(31)
- poke(0x5f2e,1)--hidden palette
+typed=""
+letters="abcdefghijklmnopqrstuvwxyz"
+letter=""
+topl = ""
+word = ""
+
+fox = "the quick brown fox"
+fox_p = 63
+ch = ""
+
+-- timer variables
+lcolor = 7
+test_time = 60
+timer = 0
+tick = 0
+game_over = false
+
+
+--wmp & acc variable
+correct_char = 0
+wrong_char = 0
+wpm = 0
+acc = 100
+index = 1
+
+function _init(x)
+ poke(0x5f2d,1) --enable stat(31)
+ poke(0x5f2e,1) --hidden palette
  pal(9,9+122,1)
  palt(0,false)
  palt(5,true)
- music(0)
  reset_game()
- test_time = max(2,x)
- ski = true
- chs = ""
- lcolor = 7
- for i = 1,999 do stat(31) end
-  
+ 
+ topl = sub(fox,index,index)
+ test_time = max(15,x)
+	timer = 0
 end
 
-function update_game()
+function _update60()
 	if game_over == true then
-		poke(0x5f30,0)
 	 return 
 	end
 	
 	tick += 1
-	--disable pause via p or enter
-	--important here for custom pause menu
+		--disable pause via p or enter
 	poke(0x5f30,1)
-	
-	if ski==true then
-  ski = false
-  stat(31)
-  return		
-	end
 	
  if stat(30) then
   local c = stat(31) -- last typed character
-  chs = c
-  
+    
   if c == topl then
   	typed..= c
   	index += 1
@@ -50,10 +58,9 @@ function update_game()
   	correct_char += 1
   	ch = ""
   	lcolor = 7
-  	
  
   --backspace detection
-  elseif c == "\b" and fox_p < 63 then 
+  elseif c == "\b" and fox_p < 64 then 
    typed = sub(typed,1,#typed-1)
    index -= 1
    fox_p += 4
@@ -62,11 +69,15 @@ function update_game()
    lcolor = 8
    ch = c --ch = the wrong red letter
    wrong_char += 1
-   sfx(3)
   end
   
   topl = sub(fox,index,index)
-  sfx(1)
+
+  --delete word 
+  if (#typed) == 1000 then
+  	typed = ""
+  end 
+  
   --generate new text
   if index == #fox-15 then
    --fox = fox.." lorem"
@@ -74,9 +85,10 @@ function update_game()
   end
   
  end
+ 
 end
 
-function draw_game()
+function _draw()
  cls() map() --draws map
 
  timer = mytimer() 
@@ -99,8 +111,15 @@ function draw_game()
 	-- end test
  if timer >= test_time then
   game_over = true
- 	results()
-  return 
+  if btnp(4) then
+   _init(60) --press z start over
+  end
+
+  if btnp(5) then 
+   _init(30)
+  end
+  
+		return 
  end
   
  print(left,60,30, 7)
@@ -109,74 +128,61 @@ function draw_game()
  ..tostr(acc).."%acc",40,40,11)
  
  print(typed,10,20,11)
+ --keyboardkey()
  
 	print(fox, fox_p,50,7)
 	print(typed,fox_p,50,11)
-		
+	
 	keyboardkey()
-	keylight(chs)
 	
 	if lcolor == 8 then
-		print(chs,63,61,lcolor)
+		print(topl,63,61,lcolor)
 	end
 
- rect(4,4,124,124,3) -- margins
+	--print(letter,60,67,lcolor)
+	--print(ch,64,50,lcolor)
 end
 -->8
--- custom functions
+function new_letter()
+	letter=chr(flr(rnd(26))+97)
+	lcolor=7
+end
 
 function new_word()
 	i = flr(rnd(1000))+1			
-	w = eng1k[i] --word_table[i]
-	return w
+	word = eng1k[i] --word_table[i]
+	return word
 end
 
-rows={25,29,33}
-counts={10,9,9}
+row1 = 25
+row2 = 29
+row3 = 33
 
 function keyboardkey()
- spr(22,61,54)
- spr(1,-4,50)
- spr(1,124,50)
-
- local li=1
-
- for row=1,3 do
-  local y=71+(row-1)*10
-
-  for i=1,counts[row] do
-   local x=rows[row]-8+i*8
-
-   spr(8,x,y)
-   spr(24,x,y+8)
-   print(sub(letters,li,li),x+2,y+2,11)
-
-   li+=1
-  end
+ spr(22,61,54) -- cursor
+ spr(1,0,50) 
+ spr(1,120,50)
+ 
+ for i=1,10 do --row1
+ 	spr(8,row1+(-8+i*8),71)
+ 	spr(24,row1+(-8+i*8),79)
  end
-end
-
-letters="qwertyuiopasdfghjklzxcvbnm,."
-
-keys = {
-	{"q",27,73},{"w",35,73},{"e",43,73},{"r",51,73},{"t",59,73},
-	{"y",67,73},{"u",75,73},{"i",83,73},{"o",91,73},{"p",99,73},
-
-	{"a",31,83},{"s",39,83},{"d",47,83},{"f",55,83},{"g",63,83},
-	{"h",71,83},{"j",79,83},{"k",87,83},{"l",95,83},
-
-	{"z",35,93},{"x",43,93},{"c",51,93},{"v",59,93},
-	{"b",67,93},{"n",75,93},{"m",83,93}
-}
-
-function keylight(c)
-	for k in all(keys) do
-  if c == k[1] then
-   spr(11,k[2]-2,k[3]-2)
-   print(k[1],k[2],k[3],9) 
-  end 
+ 
+ for i=1, 9 do --row2
+  spr(8,row2+(-8+i*8),81)
+  spr(24,row2+(-8+i*8),89)
  end
-
+ 
+ for i=1, 9 do --row3
+  spr(8,row3+(-8+i*8),91)
+  spr(24,row3+(-8+i*8),99)
+ end
+ 
+ --spr(6,40,49)
+ --spr(7,48,49)
+ --spr(23,48,57)
+ --spr(5,52,46)
+ --spr(5,43,46,1,1,true)
 end
 
 function upd_wpm() 
@@ -198,7 +204,7 @@ end
 
 function reset_game()
  typed = ""
- fox = "the quick brown fox jumps over the lazy dog"
+ fox = "the quick brown fox"
  fox_p = 63
 
  correct_char = 0
@@ -215,57 +221,1018 @@ function reset_game()
 
  topl = sub(fox,index,index)
 end
-
-menuitem(1,"27 secodn test",function() init_game(27)
-end)
-
-function results()
-	music(-1)
-	
-	print("60 sec:🅾️",45,60,11)
-	print("30 sec:❎",45,70,11)
-	print("120 sec:⬆️",41,80,11)
-	
-	 --press z start
- if btnp(4) then init_game(60) end
- if btnp(5) then init_game(30) end
- if btnp(2) then init_game(120) end
- 
-end
 -->8
---words
 -- () [] {} |
-eng1k = {}
-longword = "the of to and a in is it you that he was for on are with as i his they be at one have this from or had by not word but what some we can out other were all there when up use your how said an each she which do their time if will way about many then them write would like so these her long make thing see him two has look more day could go come did number sound no most people my over know water than call first who may down side been now find any new work part take get place made live where after back little only round man year came show every good me give our under name very through just form sentence great think say help low line differ turn cause much mean before move right boy old too same tell does set three want air well also play small end put home read hand port large spell add even land here must big high such follow act why ask men change went light kind off need house picture try us again animal point mother world near build self earth father head stand own page should country found answer school grow study still learn plant cover food sun four between state keep eye never last let thought city tree cross farm hard start might story saw far sea draw left late run while press close night real life few north open seem together next white children begin got walk example ease paper group always music those both mark often letter until mile river car feet care second book carry took science eat room friend began idea fish mountain stop once base hear horse cut sure watch color face wood main enough plain girl usual young ready above ever red list though feel talk bird soon body dog family direct pose leave song measure door product black short numeral class wind question happen complete ship area half rock order fire south problem piece told knew pass since top whole king space heard best hour better true during hundred five remember step early hold west ground interest reach fast verb sing listen six table travel less morning ten simple several vowel toward war lay against pattern slow center love person money serve appear road map rain rule govern pull cold notice voice unit power town fine certain fly fall lead cry dark machine note wait plan figure star box noun field rest correct able pound done beauty drive stood contain front teach week final gave green oh quick develop ocean warm free minute strong special mind behind clear tail produce fact street inch multiply nothing course stay wheel full force blue object decide surface deep moon island foot system busy test record boat common gold possible plane stead dry wonder laugh thousand ago ran check game shape equate hot miss brought heat snow tire bring yes distant fill east paint language among grand ball yet wave drop heart am present heavy dance engine position arm wide sail material size vary settle speak weight general ice matter circle pair include divide syllable felt perhaps pick sudden count square reason length represent art subject region energy hunt probable bed brother egg ride cell believe fraction forest sit race window store summer train sleep prove lone leg exercise wall catch mount wish sky board joy winter sat written wild instrument kept glass grass cow job edge sign visit past soft fun bright gas weather month million bear finish happy hope flower clothes strange gone jump baby eight village meet root buy raise solve metal whether push seven paragraph third shall held hair describe cook floor either result burn hill safe cat century consider type law bit coast copy phrase silent tall sand soil roll temperature finger industry value fight lie beat excite natural view sense ear else quite broke case middle kill son lake moment scale loud spring observe child straight consonant nation dictionary milk speed method organ pay age section dress cloud surprise quiet stone tiny climb cool design poor lot experiment bottom key iron single stick flat twenty skin smile crease hole trade melody trip office receive row mouth exact symbol die least trouble shout except wrote seed tone join suggest clean break lady yard rise bad blow oil blood touch grew cent mix team wire cost lost brown wear garden equal sent choose fell fit flow fair bank collect save control decimal gentle woman captain practice separate difficult doctor please protect noon whose locate ring character insect caught period indicate radio spoke atom human history effect electric expect crop modern element hit student corner party supply bone rail imagine provide agree thus capital chair danger fruit rich thick soldier process operate guess necessary sharp wing create neighbor wash bat rather crowd corn compare poem string bell depend meat rub tube famous dollar stream fear sight thin triangle planet hurry chief colony clock mine tie enter major fresh search send yellow gun allow print dead spot desert suit current lift rose continue block chart hat sell success company subtract event particular deal swim term opposite wife shoe shoulder spread arrange camp invent cotton born determine quart nine truck noise level chance gather shop stretch throw shine property column molecule select wrong gray repeat require broad prepare salt nose plural anger claim continent oxygen sugar death pretty skill women season solution magnet silver thank branch match suffix especially fig afraid huge sister steel discuss forward similar guide experience score apple bought led pitch coat mass card band rope slip win dream evening condition feed tool total basic smell valley nor double seat arrive master track parent shore division sheet substance favor connect post spend chord fat glad original share station dad bread charge proper bar offer segment duck instant market degree populate chick dear enemy reply drink occur support speech nature range steam motion path liquid log meant quotient teeth shell neck program public universe"
-
-function word_gen()
- eng1k = split(longword," ")
-end
--->8
---start init
-function _init()
-	word_gen()
- init_game(1)
- --init_menu()
- --init_end()
-end
--->8
---end screen
-
-function draw_end()
-
- return 
-
-end
+word_table = {"the","me","them"}
+eng1k = {"the",
+"of",
+"to",
+"and",
+"a",
+"in",
+"is",
+"it",
+"you",
+"that",
+"he",
+"was",
+"for",
+"on",
+"are",
+"with",
+"as",
+"i",
+"his",
+"they",
+"be",
+"at",
+"one",
+"have",
+"this",
+"from",
+"or",
+"had",
+"by",
+"not",
+"word",
+"but",
+"what",
+"some",
+"we",
+"can",
+"out",
+"other",
+"were",
+"all",
+"there",
+"when",
+"up",
+"use",
+"your",
+"how",
+"said",
+"an",
+"each",
+"she",
+"which",
+"do",
+"their",
+"time",
+"if",
+"will",
+"way",
+"about",
+"many",
+"then",
+"them",
+"write",
+"would",
+"like",
+"so",
+"these",
+"her",
+"long",
+"make",
+"thing",
+"see",
+"him",
+"two",
+"has",
+"look",
+"more",
+"day",
+"could",
+"go",
+"come",
+"did",
+"number",
+"sound",
+"no",
+"most",
+"people",
+"my",
+"over",
+"know",
+"water",
+"than",
+"call",
+"first",
+"who",
+"may",
+"down",
+"side",
+"been",
+"now",
+"find",
+"any",
+"new",
+"work",
+"part",
+"take",
+"get",
+"place",
+"made",
+"live",
+"where",
+"after",
+"back",
+"little",
+"only",
+"round",
+"man",
+"year",
+"came",
+"show",
+"every",
+"good",
+"me",
+"give",
+"our",
+"under",
+"name",
+"very",
+"through",
+"just",
+"form",
+"sentence",
+"great",
+"think",
+"say",
+"help",
+"low",
+"line",
+"differ",
+"turn",
+"cause",
+"much",
+"mean",
+"before",
+"move",
+"right",
+"boy",
+"old",
+"too",
+"same",
+"tell",
+"does",
+"set",
+"three",
+"want",
+"air",
+"well",
+"also",
+"play",
+"small",
+"end",
+"put",
+"home",
+"read",
+"hand",
+"port",
+"large",
+"spell",
+"add",
+"even",
+"land",
+"here",
+"must",
+"big",
+"high",
+"such",
+"follow",
+"act",
+"why",
+"ask",
+"men",
+"change",
+"went",
+"light",
+"kind",
+"off",
+"need",
+"house",
+"picture",
+"try",
+"us",
+"again",
+"animal",
+"point",
+"mother",
+"world",
+"near",
+"build",
+"self",
+"earth",
+"father",
+"head",
+"stand",
+"own",
+"page",
+"should",
+"country",
+"found",
+"answer",
+"school",
+"grow",
+"study",
+"still",
+"learn",
+"plant",
+"cover",
+"food",
+"sun",
+"four",
+"between",
+"state",
+"keep",
+"eye",
+"never",
+"last",
+"let",
+"thought",
+"city",
+"tree",
+"cross",
+"farm",
+"hard",
+"start",
+"might",
+"story",
+"saw",
+"far",
+"sea",
+"draw",
+"left",
+"late",
+"run",
+"while",
+"press",
+"close",
+"night",
+"real",
+"life",
+"few",
+"north",
+"open",
+"seem",
+"together",
+"next",
+"white",
+"children",
+"begin",
+"got",
+"walk",
+"example",
+"ease",
+"paper",
+"group",
+"always",
+"music",
+"those",
+"both",
+"mark",
+"often",
+"letter",
+"until",
+"mile",
+"river",
+"car",
+"feet",
+"care",
+"second",
+"book",
+"carry",
+"took",
+"science",
+"eat",
+"room",
+"friend",
+"began",
+"idea",
+"fish",
+"mountain",
+"stop",
+"once",
+"base",
+"hear",
+"horse",
+"cut",
+"sure",
+"watch",
+"color",
+"face",
+"wood",
+"main",
+"enough",
+"plain",
+"girl",
+"usual",
+"young",
+"ready",
+"above",
+"ever",
+"red",
+"list",
+"though",
+"feel",
+"talk",
+"bird",
+"soon",
+"body",
+"dog",
+"family",
+"direct",
+"pose",
+"leave",
+"song",
+"measure",
+"door",
+"product",
+"black",
+"short",
+"numeral",
+"class",
+"wind",
+"question",
+"happen",
+"complete",
+"ship",
+"area",
+"half",
+"rock",
+"order",
+"fire",
+"south",
+"problem",
+"piece",
+"told",
+"knew",
+"pass",
+"since",
+"top",
+"whole",
+"king",
+"space",
+"heard",
+"best",
+"hour",
+"better",
+"true",
+"during",
+"hundred",
+"five",
+"remember",
+"step",
+"early",
+"hold",
+"west",
+"ground",
+"interest",
+"reach",
+"fast",
+"verb",
+"sing",
+"listen",
+"six",
+"table",
+"travel",
+"less",
+"morning",
+"ten",
+"simple",
+"several",
+"vowel",
+"toward",
+"war",
+"lay",
+"against",
+"pattern",
+"slow",
+"center",
+"love",
+"person",
+"money",
+"serve",
+"appear",
+"road",
+"map",
+"rain",
+"rule",
+"govern",
+"pull",
+"cold",
+"notice",
+"voice",
+"unit",
+"power",
+"town",
+"fine",
+"certain",
+"fly",
+"fall",
+"lead",
+"cry",
+"dark",
+"machine",
+"note",
+"wait",
+"plan",
+"figure",
+"star",
+"box",
+"noun",
+"field",
+"rest",
+"correct",
+"able",
+"pound",
+"done",
+"beauty",
+"drive",
+"stood",
+"contain",
+"front",
+"teach",
+"week",
+"final",
+"gave",
+"green",
+"oh",
+"quick",
+"develop",
+"ocean",
+"warm",
+"free",
+"minute",
+"strong",
+"special",
+"mind",
+"behind",
+"clear",
+"tail",
+"produce",
+"fact",
+"street",
+"inch",
+"multiply",
+"nothing",
+"course",
+"stay",
+"wheel",
+"full",
+"force",
+"blue",
+"object",
+"decide",
+"surface",
+"deep",
+"moon",
+"island",
+"foot",
+"system",
+"busy",
+"test",
+"record",
+"boat",
+"common",
+"gold",
+"possible",
+"plane",
+"stead",
+"dry",
+"wonder",
+"laugh",
+"thousand",
+"ago",
+"ran",
+"check",
+"game",
+"shape",
+"equate",
+"hot",
+"miss",
+"brought",
+"heat",
+"snow",
+"tire",
+"bring",
+"yes",
+"distant",
+"fill",
+"east",
+"paint",
+"language",
+"among",
+"grand",
+"ball",
+"yet",
+"wave",
+"drop",
+"heart",
+"am",
+"present",
+"heavy",
+"dance",
+"engine",
+"position",
+"arm",
+"wide",
+"sail",
+"material",
+"size",
+"vary",
+"settle",
+"speak",
+"weight",
+"general",
+"ice",
+"matter",
+"circle",
+"pair",
+"include",
+"divide",
+"syllable",
+"felt",
+"perhaps",
+"pick",
+"sudden",
+"count",
+"square",
+"reason",
+"length",
+"represent",
+"art",
+"subject",
+"region",
+"energy",
+"hunt",
+"probable",
+"bed",
+"brother",
+"egg",
+"ride",
+"cell",
+"believe",
+"fraction",
+"forest",
+"sit",
+"race",
+"window",
+"store",
+"summer",
+"train",
+"sleep",
+"prove",
+"lone",
+"leg",
+"exercise",
+"wall",
+"catch",
+"mount",
+"wish",
+"sky",
+"board",
+"joy",
+"winter",
+"sat",
+"written",
+"wild",
+"instrument",
+"kept",
+"glass",
+"grass",
+"cow",
+"job",
+"edge",
+"sign",
+"visit",
+"past",
+"soft",
+"fun",
+"bright",
+"gas",
+"weather",
+"month",
+"million",
+"bear",
+"finish",
+"happy",
+"hope",
+"flower",
+"clothes",
+"strange",
+"gone",
+"jump",
+"baby",
+"eight",
+"village",
+"meet",
+"root",
+"buy",
+"raise",
+"solve",
+"metal",
+"whether",
+"push",
+"seven",
+"paragraph",
+"third",
+"shall",
+"held",
+"hair",
+"describe",
+"cook",
+"floor",
+"either",
+"result",
+"burn",
+"hill",
+"safe",
+"cat",
+"century",
+"consider",
+"type",
+"law",
+"bit",
+"coast",
+"copy",
+"phrase",
+"silent",
+"tall",
+"sand",
+"soil",
+"roll",
+"temperature",
+"finger",
+"industry",
+"value",
+"fight",
+"lie",
+"beat",
+"excite",
+"natural",
+"view",
+"sense",
+"ear",
+"else",
+"quite",
+"broke",
+"case",
+"middle",
+"kill",
+"son",
+"lake",
+"moment",
+"scale",
+"loud",
+"spring",
+"observe",
+"child",
+"straight",
+"consonant",
+"nation",
+"dictionary",
+"milk",
+"speed",
+"method",
+"organ",
+"pay",
+"age",
+"section",
+"dress",
+"cloud",
+"surprise",
+"quiet",
+"stone",
+"tiny",
+"climb",
+"cool",
+"design",
+"poor",
+"lot",
+"experiment",
+"bottom",
+"key",
+"iron",
+"single",
+"stick",
+"flat",
+"twenty",
+"skin",
+"smile",
+"crease",
+"hole",
+"trade",
+"melody",
+"trip",
+"office",
+"receive",
+"row",
+"mouth",
+"exact",
+"symbol",
+"die",
+"least",
+"trouble",
+"shout",
+"except",
+"wrote",
+"seed",
+"tone",
+"join",
+"suggest",
+"clean",
+"break",
+"lady",
+"yard",
+"rise",
+"bad",
+"blow",
+"oil",
+"blood",
+"touch",
+"grew",
+"cent",
+"mix",
+"team",
+"wire",
+"cost",
+"lost",
+"brown",
+"wear",
+"garden",
+"equal",
+"sent",
+"choose",
+"fell",
+"fit",
+"flow",
+"fair",
+"bank",
+"collect",
+"save",
+"control",
+"decimal",
+"gentle",
+"woman",
+"captain",
+"practice",
+"separate",
+"difficult",
+"doctor",
+"please",
+"protect",
+"noon",
+"whose",
+"locate",
+"ring",
+"character",
+"insect",
+"caught",
+"period",
+"indicate",
+"radio",
+"spoke",
+"atom",
+"human",
+"history",
+"effect",
+"electric",
+"expect",
+"crop",
+"modern",
+"element",
+"hit",
+"student",
+"corner",
+"party",
+"supply",
+"bone",
+"rail",
+"imagine",
+"provide",
+"agree",
+"thus",
+"capital",
+"chair",
+"danger",
+"fruit",
+"rich",
+"thick",
+"soldier",
+"process",
+"operate",
+"guess",
+"necessary",
+"sharp",
+"wing",
+"create",
+"neighbor",
+"wash",
+"bat",
+"rather",
+"crowd",
+"corn",
+"compare",
+"poem",
+"string",
+"bell",
+"depend",
+"meat",
+"rub",
+"tube",
+"famous",
+"dollar",
+"stream",
+"fear",
+"sight",
+"thin",
+"triangle",
+"planet",
+"hurry",
+"chief",
+"colony",
+"clock",
+"mine",
+"tie",
+"enter",
+"major",
+"fresh",
+"search",
+"send",
+"yellow",
+"gun",
+"allow",
+"print",
+"dead",
+"spot",
+"desert",
+"suit",
+"current",
+"lift",
+"rose",
+"continue",
+"block",
+"chart",
+"hat",
+"sell",
+"success",
+"company",
+"subtract",
+"event",
+"particular",
+"deal",
+"swim",
+"term",
+"opposite",
+"wife",
+"shoe",
+"shoulder",
+"spread",
+"arrange",
+"camp",
+"invent",
+"cotton",
+"born",
+"determine",
+"quart",
+"nine",
+"truck",
+"noise",
+"level",
+"chance",
+"gather",
+"shop",
+"stretch",
+"throw",
+"shine",
+"property",
+"column",
+"molecule",
+"select",
+"wrong",
+"gray",
+"repeat",
+"require",
+"broad",
+"prepare",
+"salt",
+"nose",
+"plural",
+"anger",
+"claim",
+"continent",
+"oxygen",
+"sugar",
+"death",
+"pretty",
+"skill",
+"women",
+"season",
+"solution",
+"magnet",
+"silver",
+"thank",
+"branch",
+"match",
+"suffix",
+"especially",
+"fig",
+"afraid",
+"huge",
+"sister",
+"steel",
+"discuss",
+"forward",
+"similar",
+"guide",
+"experience",
+"score",
+"apple",
+"bought",
+"led",
+"pitch",
+"coat",
+"mass",
+"card",
+"band",
+"rope",
+"slip",
+"win",
+"dream",
+"evening",
+"condition",
+"feed",
+"tool",
+"total",
+"basic",
+"smell",
+"valley",
+"nor",
+"double",
+"seat",
+"arrive",
+"master",
+"track",
+"parent",
+"shore",
+"division",
+"sheet",
+"substance",
+"favor",
+"connect",
+"post",
+"spend",
+"chord",
+"fat",
+"glad",
+"original",
+"share",
+"station",
+"dad",
+"bread",
+"charge",
+"proper",
+"bar",
+"offer",
+"segment",
+"duck",
+"instant",
+"market",
+"degree",
+"populate",
+"chick",
+"dear",
+"enemy",
+"reply",
+"drink",
+"occur",
+"support",
+"speech",
+"nature",
+"range",
+"steam",
+"motion",
+"path",
+"liquid",
+"log",
+"meant",
+"quotient",
+"teeth",
+"shell",
+"neck",
+"program",
+"public",
+"universe"}
 __gfx__
-00000000999999997777777755555555555555555555555555555555b99999b55000005555555555555555555000005500000000000000000000000000000000
-0000000099999999000000005555500000000000000555555555555bb99999bb00555005555500000005555500bbb00500000000000000000000000000000000
-00700700999999996666666655500333333333339990055555555559999999990555550555009999999005550bbbbb0500000000000000000000000000000000
-00077000999999997777777755033bbbbbbbbbbbbbb990555555555999999999055555055099bbbbbbb990550bbbbb0500000000000000000000000000000000
-0007700099999999666666665503b33333333333999b9055555555599999999905555505509b9999999b90550bbbbb0500000000000000000000000000000000
-007007009999999900000000503b3300000000005599b90555555559999999990555550500b995555599b9050bbbbb0500000000000000000000000000000000
-000000009999999977777777503b3005555555555559b90555555559999999990555550509b955777559b9050bbbbb0500000000000000000000000000000000
-000000009999999977777777503b3055555555555559b9055555555bb99999bb0055500559b955757559b90500bbb00500000000000000000000000000000000
+00000000999999997777777755555555555555555555555555555555b99999b55000005555555555555555550000000000000000000000000000000000000000
+0000000099999999000000005555500000000000000555555555555bb99999bb0055500555550000000555550000000000000000000000000000000000000000
+00700700999999996666666655500333333333339990055555555559999999990555550555009999999005550000000000000000000000000000000000000000
+00077000999999997777777755033bbbbbbbbbbbbbb990555555555999999999055555055099bbbbbbb990550000000000000000000000000000000000000000
+0007700099999999666666665503b33333333333999b9055555555599999999905555505509b9999999b90550000000000000000000000000000000000000000
+007007009999999900000000503b3300000000005599b90555555559999999990555550500b995555599b9050000000000000000000000000000000000000000
+000000009999999977777777503b3005555555555559b90555555559999999990555550509b955777559b9050000000000000000000000000000000000000000
+000000009999999977777777503b3055555555555559b9055555555bb99999bb0055500559b955757559b9050000000000000000000000000000000000000000
 000000000000000000000000303b3033000000003303b30355555555b99999b55000005559b95577755900050000000000000000000000000000000000000000
 000000000000000000000000303b3033000000003303b30355555555555555555555555559b95575755900050000000000000000000000000000000000000000
 000000000000000000000000303b3033000000003303b30358888855555555555555555559b99577755900050000000000000000000000000000000000000000
@@ -420,16 +1387,4 @@ __map__
 0101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101
 0101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101010101
 __sfx__
-010300001567012650000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000300000000000000000000000000000000000000000000000000000000000
-000300003051534515000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-00190020056110a6110c6110d61104611076110061100611006110c6110c611136111361117611186111b6111b611166111661114611116111861116611166110c6110c6110c6110061107611056110561107611
-4818000001610016110161101611016110161104611076110b61112611166111b6112061128611306113561138611336112d6112961125611206111c6111861112611106110c6110861104611026110261101611
-48020000071440f153163630b24332643216331c62318613086130a6130e6130a6130f2050f205013050230500305003050030500305003050030500305000000000000000000000000000000000000000000000
-00020000071340f133163330b22332623216331c62318613086130a6130e6130a6130000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-000100001805003300010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-__music__
-02 02444344
-00 03424344
-00 02034344
-00 43424344
-
+000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
